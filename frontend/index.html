@@ -22,6 +22,7 @@
             <li class="category__item" data-category="4">Lecturas</li>
         </ul>
         <div class="navbar__auth">
+            <button class="btn btn--outline" id="btn-mi-lista" style="display:none">Mi Lista</button>
             <button class="btn btn--outline" id="btn-login">Iniciar sesión</button>
             <button class="btn btn--primary hidden" id="btn-logout">Cerrar sesión</button>
         </div>
@@ -49,15 +50,28 @@
     </section>
 
     <!-- CATÁLOGO PRINCIPAL -->
-    <main class="main">
+    <main class="main" id="main-section">
         <h2 class="section__title" id="catalog-title">Todo el catálogo</h2>
         <div class="grid" id="catalog-grid">
-            <!-- Cards se generan con JS -->
         </div>
         <p class="empty-message hidden" id="empty-message">
             No hay títulos en esta categoría todavía.
         </p>
     </main>
+
+    <!-- MI LISTA (oculto por defecto) -->
+    <section class="hidden" id="mi-lista-section">
+        <div class="main">
+            <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem">
+                <h2 class="section__title" style="margin-bottom:0">Mi Lista</h2>
+                <button class="btn btn--outline" id="btn-volver" style="font-size:0.85rem">← Volver</button>
+            </div>
+            <div class="grid" id="mi-lista-grid"></div>
+            <p class="empty-message hidden" id="mi-lista-empty">
+                No tienes títulos en tu lista todavía.
+            </p>
+        </div>
+    </section>
 
     <!-- MODAL DETALLE -->
     <div class="modal hidden" id="modal">
@@ -65,7 +79,6 @@
         <div class="modal__content">
             <button class="modal__close" id="modal-close">✕</button>
             <div class="modal__body" id="modal-body">
-                <!-- Contenido dinámico -->
             </div>
         </div>
     </div>
