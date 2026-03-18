@@ -56,3 +56,6 @@ Abre frontend/index.html con Live Server en VS Code
 - Despliegue en producción
 - Integrar ComicVine API para mejor cobertura 
   de cómics occidentales (Marvel, DC)
+
+## Estado del proyecto
+Proyecto Completado el 18 de marzo 2026  
