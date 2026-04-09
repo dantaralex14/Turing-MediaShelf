@@ -1,5 +1,5 @@
 // ===== ESTADO GLOBAL =====
-const API = 'http://127.0.0.1:5000/api'
+const API = 'https://mediashelf-api.onrender.com/api'
 let token = localStorage.getItem('token') || null
 let currentUser = JSON.parse(localStorage.getItem('user') || 'null')
 let activeCategoryId = ''
