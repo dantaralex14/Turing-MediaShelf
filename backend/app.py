@@ -2,13 +2,17 @@ from flask import Flask
 from flask_cors import CORS
 from flask_bcrypt import Bcrypt
 from database import db
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
 
 bcrypt = Bcrypt()
 
 def create_app():
     app = Flask(__name__)
-    app.config['SECRET_KEY'] = 'mediashelf_secret_key'
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
+    app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
+    app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///database.db')
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
     CORS(app)
@@ -26,7 +30,6 @@ def create_app():
     with app.app_context():
         db.create_all()
 
-        # Seed categorías
         from models import Category
         categorias = ['Series', 'Películas', 'Videojuegos', 'Lecturas']
         for nombre in categorias:
@@ -34,18 +37,10 @@ def create_app():
                 db.session.add(Category(name=nombre))
         db.session.commit()
 
-        # Crear admin por defecto
         from models import User
-        from flask_bcrypt import Bcrypt as BC
-        bc = BC()
-        bc.init_app(app)
         if not User.query.filter_by(username='admin').first():
-            password_hash = bc.generate_password_hash('admin123').decode('utf-8')
-            admin = User(
-                username='admin',
-                password_hash=password_hash,
-                role='admin'
-            )
+            password_hash = bcrypt.generate_password_hash('admin123').decode('utf-8')
+            admin = User(username='admin', password_hash=password_hash, role='admin')
             db.session.add(admin)
             db.session.commit()
 

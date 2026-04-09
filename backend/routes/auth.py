@@ -1,3 +1,4 @@
+import os
 from flask import Blueprint, jsonify, request
 from models import User
 from database import db
@@ -5,12 +6,13 @@ from flask_bcrypt import Bcrypt
 import jwt
 import datetime
 import os
+from dotenv import load_dotenv
+load_dotenv()
 
 auth_bp = Blueprint('auth', __name__)
 bcrypt = Bcrypt()
 
-SECRET_KEY = 'mediashelf_secret_key'
-
+SECRET_KEY = os.environ.get('SECRET_KEY', 'mediashelf_secret_key')
 @auth_bp.route('/register', methods=['POST'])
 def register():
     data = request.get_json()

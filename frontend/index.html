@@ -84,11 +84,23 @@
     </div>
 
     <!-- MODAL LOGIN -->
-    <div class="modal hidden" id="modal-login">
-        <div class="modal__overlay" id="login-overlay"></div>
-        <div class="modal__content modal__content--small">
-            <button class="modal__close" id="login-close">✕</button>
-            <h2 class="modal__title">Iniciar sesión</h2>
+<div class="modal hidden" id="modal-login">
+    <div class="modal__overlay" id="login-overlay"></div>
+    <div class="modal__content modal__content--small">
+        <button class="modal__close" id="login-close">✕</button>
+        
+        <!-- TABS -->
+        <div style="display:flex;gap:0;margin-bottom:1.5rem;border-bottom:1px solid var(--color-border)">
+            <button id="tab-login" style="flex:1;padding:0.75rem;background:none;border:none;color:var(--color-primary);font-weight:700;cursor:pointer;border-bottom:2px solid var(--color-primary)">
+                Iniciar sesión
+            </button>
+            <button id="tab-register" style="flex:1;padding:0.75rem;background:none;border:none;color:var(--color-text-muted);cursor:pointer;border-bottom:2px solid transparent">
+                Registrarse
+            </button>
+        </div>
+
+        <!-- FORM LOGIN -->
+        <div id="form-login">
             <div class="form__group">
                 <input type="text" id="input-username" class="form__input" placeholder="Usuario"/>
             </div>
@@ -98,7 +110,26 @@
             <button class="btn btn--primary btn--full" id="btn-submit-login">Entrar</button>
             <p class="form__error hidden" id="login-error">Credenciales incorrectas</p>
         </div>
+
+        <!-- FORM REGISTRO -->
+        <div id="form-register" class="hidden">
+            <div class="form__group">
+                <input type="text" id="reg-username" class="form__input" placeholder="Usuario"/>
+            </div>
+            <div class="form__group">
+                <input type="password" id="reg-password" class="form__input" placeholder="Contraseña"/>
+            </div>
+            <div class="form__group">
+                <input type="password" id="reg-password2" class="form__input" placeholder="Confirmar contraseña"/>
+            </div>
+            <button class="btn btn--primary btn--full" id="btn-submit-register">Crear cuenta</button>
+            <p class="form__error hidden" id="register-error"></p>
+            <p class="hidden" id="register-success" style="color:var(--color-primary);text-align:center;margin-top:0.5rem;font-size:0.9rem">
+                ✅ Cuenta creada. Ahora inicia sesión.
+            </p>
+        </div>
     </div>
+</div>
 
     <script src="js/main.js"></script>
 </body>

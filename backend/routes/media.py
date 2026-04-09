@@ -1,12 +1,17 @@
+import os
 from flask import Blueprint, jsonify, request
 from database import db
 from models import Media, Category
 import jwt
 import requests
+from dotenv import load_dotenv
+load_dotenv()
 
 media_bp = Blueprint('media', __name__)
 
-SECRET_KEY = 'mediashelf_secret_key'
+SECRET_KEY = os.environ.get('SECRET_KEY', 'mediashelf_secret_key')
+TMDB_KEY = os.environ.get('TMDB_KEY')
+RAWG_KEY = os.environ.get('RAWG_KEY')
 
 def get_current_user(request):
     token = request.headers.get('Authorization', '').replace('Bearer ', '')

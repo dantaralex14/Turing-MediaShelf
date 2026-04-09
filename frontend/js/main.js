@@ -708,3 +708,89 @@ if (btnVolver) {
         searchResults.classList.add('hidden')
     })
 }
+// ===== TABS LOGIN / REGISTRO =====
+const tabLogin = document.getElementById('tab-login')
+const tabRegister = document.getElementById('tab-register')
+const formLogin = document.getElementById('form-login')
+const formRegister = document.getElementById('form-register')
+
+if (tabLogin && tabRegister) {
+    tabLogin.addEventListener('click', () => {
+        tabLogin.style.color = 'var(--color-primary)'
+        tabLogin.style.borderBottom = '2px solid var(--color-primary)'
+        tabRegister.style.color = 'var(--color-text-muted)'
+        tabRegister.style.borderBottom = '2px solid transparent'
+        formLogin.classList.remove('hidden')
+        formRegister.classList.add('hidden')
+    })
+
+    tabRegister.addEventListener('click', () => {
+        tabRegister.style.color = 'var(--color-primary)'
+        tabRegister.style.borderBottom = '2px solid var(--color-primary)'
+        tabLogin.style.color = 'var(--color-text-muted)'
+        tabLogin.style.borderBottom = '2px solid transparent'
+        formRegister.classList.remove('hidden')
+        formLogin.classList.add('hidden')
+    })
+}
+
+// ===== REGISTRO =====
+const btnSubmitRegister = document.getElementById('btn-submit-register')
+const registerError = document.getElementById('register-error')
+const registerSuccess = document.getElementById('register-success')
+
+if (btnSubmitRegister) {
+    btnSubmitRegister.addEventListener('click', async () => {
+        const username = document.getElementById('reg-username').value.trim()
+        const password = document.getElementById('reg-password').value.trim()
+        const password2 = document.getElementById('reg-password2').value.trim()
+
+        registerError.classList.add('hidden')
+        registerSuccess.classList.add('hidden')
+
+        if (!username || !password) {
+            registerError.textContent = 'Completa todos los campos'
+            registerError.classList.remove('hidden')
+            return
+        }
+
+        if (password !== password2) {
+            registerError.textContent = 'Las contraseñas no coinciden'
+            registerError.classList.remove('hidden')
+            return
+        }
+
+        if (password.length < 6) {
+            registerError.textContent = 'La contraseña debe tener al menos 6 caracteres'
+            registerError.classList.remove('hidden')
+            return
+        }
+
+        try {
+            const res = await fetch(`${API}/auth/register`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            })
+
+            const data = await res.json()
+
+            if (res.ok) {
+                registerSuccess.classList.remove('hidden')
+                document.getElementById('reg-username').value = ''
+                document.getElementById('reg-password').value = ''
+                document.getElementById('reg-password2').value = ''
+                setTimeout(() => {
+                    tabLogin.click()
+                    registerSuccess.classList.add('hidden')
+                }, 2000)
+            } else {
+                registerError.textContent = data.error || 'Error al crear cuenta'
+                registerError.classList.remove('hidden')
+            }
+        } catch (err) {
+            registerError.textContent = 'Error al conectar con el servidor'
+            registerError.classList.remove('hidden')
+        }
+    })
+}
