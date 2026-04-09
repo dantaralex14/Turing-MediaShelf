@@ -3,3 +3,7 @@ flask-sqlalchemy
 flask-cors
 flask-bcrypt
 pyjwt
+python-dotenv
+psycopg2-binary
+gunicorn
+requests
