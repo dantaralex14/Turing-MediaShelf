@@ -529,6 +529,7 @@ if (btnSubmitLogin) {
 // ===== MI LISTA =====
 if (btnMiLista) {
     btnMiLista.addEventListener('click', () => {
+        perfilSection.classList.add('hidden')
         const searchResultsSection = document.getElementById('search-results')
         if (searchResultsSection) {
             searchResultsSection.classList.add('hidden')
@@ -707,6 +708,7 @@ async function deleteEntry(entryId) {
 // ===== VOLVER A CATÁLOGO =====
 if (btnVolver) {
     btnVolver.addEventListener('click', () => {
+        perfilSection.classList.add('hidden')
         miListaSection.classList.add('hidden')
         mainSection.classList.remove('hidden')
         heroSection.classList.remove('hidden')
