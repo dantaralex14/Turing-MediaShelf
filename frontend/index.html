@@ -23,6 +23,7 @@
         </ul>
         <div class="navbar__auth">
             <button class="btn btn--outline" id="btn-mi-lista" style="display:none">Mi Lista</button>
+            <button class="btn btn--outline" id="btn-perfil" style="display:none">Mi Perfil</button>
             <button class="btn btn--outline" id="btn-login">Iniciar sesión</button>
             <button class="btn btn--primary hidden" id="btn-logout">Cerrar sesión</button>
         </div>
@@ -73,6 +74,38 @@
         </div>
     </section>
 
+    <!-- PERFIL -->
+    <section class="hidden" id="perfil-section">
+        <div class="main">
+            <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem">
+                <h2 class="section__title" style="margin-bottom:0">Mi Perfil</h2>
+                <button class="btn btn--outline" id="btn-volver-perfil" style="font-size:0.85rem">← Volver</button>
+            </div>
+
+            <!-- STATS GENERALES -->
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:1rem;margin-bottom:2rem" id="stats-cards"></div>
+
+            <!-- POR CATEGORÍA -->
+            <div style="background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius);padding:1.5rem;margin-bottom:1.5rem">
+                <h3 style="color:var(--color-primary);margin-bottom:1rem;font-size:1rem">Por categoría</h3>
+                <div id="stats-categorias" style="display:flex;flex-direction:column;gap:0.75rem"></div>
+            </div>
+
+            <!-- POR ESTADO -->
+            <div style="background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius);padding:1.5rem;margin-bottom:1.5rem">
+                <h3 style="color:var(--color-primary);margin-bottom:1rem;font-size:1rem">Por estado</h3>
+                <div id="stats-estados" style="display:flex;flex-direction:column;gap:0.75rem"></div>
+            </div>
+
+            <!-- TOP CALIFICADOS -->
+            <div style="background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius);padding:1.5rem">
+                <h3 style="color:var(--color-primary);margin-bottom:1rem;font-size:1rem">Mejor calificados por ti</h3>
+                <div class="grid" id="stats-top"></div>
+                <p class="empty-message hidden" id="stats-top-empty">No tienes títulos calificados aún</p>
+            </div>
+        </div>
+    </section>
+
     <!-- MODAL DETALLE -->
     <div class="modal hidden" id="modal">
         <div class="modal__overlay" id="modal-overlay"></div>
@@ -84,52 +117,52 @@
     </div>
 
     <!-- MODAL LOGIN -->
-<div class="modal hidden" id="modal-login">
-    <div class="modal__overlay" id="login-overlay"></div>
-    <div class="modal__content modal__content--small">
-        <button class="modal__close" id="login-close">✕</button>
-        
-        <!-- TABS -->
-        <div style="display:flex;gap:0;margin-bottom:1.5rem;border-bottom:1px solid var(--color-border)">
-            <button id="tab-login" style="flex:1;padding:0.75rem;background:none;border:none;color:var(--color-primary);font-weight:700;cursor:pointer;border-bottom:2px solid var(--color-primary)">
-                Iniciar sesión
-            </button>
-            <button id="tab-register" style="flex:1;padding:0.75rem;background:none;border:none;color:var(--color-text-muted);cursor:pointer;border-bottom:2px solid transparent">
-                Registrarse
-            </button>
-        </div>
+    <div class="modal hidden" id="modal-login">
+        <div class="modal__overlay" id="login-overlay"></div>
+        <div class="modal__content modal__content--small">
+            <button class="modal__close" id="login-close">✕</button>
+            
+            <!-- TABS -->
+            <div style="display:flex;gap:0;margin-bottom:1.5rem;border-bottom:1px solid var(--color-border)">
+                <button id="tab-login" style="flex:1;padding:0.75rem;background:none;border:none;color:var(--color-primary);font-weight:700;cursor:pointer;border-bottom:2px solid var(--color-primary)">
+                    Iniciar sesión
+                </button>
+                <button id="tab-register" style="flex:1;padding:0.75rem;background:none;border:none;color:var(--color-text-muted);cursor:pointer;border-bottom:2px solid transparent">
+                    Registrarse
+                </button>
+            </div>
 
-        <!-- FORM LOGIN -->
-        <div id="form-login">
-            <div class="form__group">
-                <input type="text" id="input-username" class="form__input" placeholder="Usuario"/>
+            <!-- FORM LOGIN -->
+            <div id="form-login">
+                <div class="form__group">
+                    <input type="text" id="input-username" class="form__input" placeholder="Usuario"/>
+                </div>
+                <div class="form__group">
+                    <input type="password" id="input-password" class="form__input" placeholder="Contraseña"/>
+                </div>
+                <button class="btn btn--primary btn--full" id="btn-submit-login">Entrar</button>
+                <p class="form__error hidden" id="login-error">Credenciales incorrectas</p>
             </div>
-            <div class="form__group">
-                <input type="password" id="input-password" class="form__input" placeholder="Contraseña"/>
-            </div>
-            <button class="btn btn--primary btn--full" id="btn-submit-login">Entrar</button>
-            <p class="form__error hidden" id="login-error">Credenciales incorrectas</p>
-        </div>
 
-        <!-- FORM REGISTRO -->
-        <div id="form-register" class="hidden">
-            <div class="form__group">
-                <input type="text" id="reg-username" class="form__input" placeholder="Usuario"/>
+            <!-- FORM REGISTRO -->
+            <div id="form-register" class="hidden">
+                <div class="form__group">
+                    <input type="text" id="reg-username" class="form__input" placeholder="Usuario"/>
+                </div>
+                <div class="form__group">
+                    <input type="password" id="reg-password" class="form__input" placeholder="Contraseña"/>
+                </div>
+                <div class="form__group">
+                    <input type="password" id="reg-password2" class="form__input" placeholder="Confirmar contraseña"/>
+                </div>
+                <button class="btn btn--primary btn--full" id="btn-submit-register">Crear cuenta</button>
+                <p class="form__error hidden" id="register-error"></p>
+                <p class="hidden" id="register-success" style="color:var(--color-primary);text-align:center;margin-top:0.5rem;font-size:0.9rem">
+                    ✅ Cuenta creada. Ahora inicia sesión.
+                </p>
             </div>
-            <div class="form__group">
-                <input type="password" id="reg-password" class="form__input" placeholder="Contraseña"/>
-            </div>
-            <div class="form__group">
-                <input type="password" id="reg-password2" class="form__input" placeholder="Confirmar contraseña"/>
-            </div>
-            <button class="btn btn--primary btn--full" id="btn-submit-register">Crear cuenta</button>
-            <p class="form__error hidden" id="register-error"></p>
-            <p class="hidden" id="register-success" style="color:var(--color-primary);text-align:center;margin-top:0.5rem;font-size:0.9rem">
-                ✅ Cuenta creada. Ahora inicia sesión.
-            </p>
         </div>
     </div>
-</div>
 
     <script src="js/main.js"></script>
 </body>

@@ -56,15 +56,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // ===== AUTH UI =====
 function updateAuthUI() {
-    if (token && currentUser) {
+    const isLoggedIn = token && currentUser;
+    const btnPerfil = document.getElementById('btn-perfil');
+    
+    if (isLoggedIn) {
         btnLogin.classList.add('hidden')
         btnLogout.classList.remove('hidden')
         btnLogout.textContent = `Salir (${currentUser.username})`
         if (btnMiLista) btnMiLista.style.display = 'inline-block'
+        if (btnPerfil) btnPerfil.style.display = 'inline-block'
     } else {
         btnLogin.classList.remove('hidden')
         btnLogout.classList.add('hidden')
         if (btnMiLista) btnMiLista.style.display = 'none'
+        if (btnPerfil) btnPerfil.style.display = 'none'
         if (miListaSection) miListaSection.classList.add('hidden')
         if (mainSection) mainSection.classList.remove('hidden')
         if (heroSection) heroSection.classList.remove('hidden')
@@ -793,4 +798,144 @@ if (btnSubmitRegister) {
             registerError.classList.remove('hidden')
         }
     })
+}
+// ===== PERFIL =====
+const btnPerfil = document.getElementById('btn-perfil')
+const perfilSection = document.getElementById('perfil-section')
+const btnVolverPerfil = document.getElementById('btn-volver-perfil')
+
+if (btnPerfil) {
+    btnPerfil.addEventListener('click', () => {
+        mainSection.classList.add('hidden')
+        heroSection.classList.add('hidden')
+        miListaSection.classList.add('hidden')
+        searchResults.classList.add('hidden')
+        perfilSection.classList.remove('hidden')
+        loadPerfil()
+    })
+}
+
+if (btnVolverPerfil) {
+    btnVolverPerfil.addEventListener('click', () => {
+        perfilSection.classList.add('hidden')
+        mainSection.classList.remove('hidden')
+        heroSection.classList.remove('hidden')
+    })
+}
+
+async function loadPerfil() {
+    try {
+        const res = await fetch(`${API}/entries/stats`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        })
+        const data = await res.json()
+
+        // TARJETAS GENERALES
+        const statsCards = document.getElementById('stats-cards')
+        statsCards.innerHTML = `
+            <div style="background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius);padding:1.25rem;text-align:center">
+                <div style="font-size:2rem;font-weight:800;color:var(--color-primary)">${data.total}</div>
+                <div style="font-size:0.85rem;color:var(--color-text-muted);margin-top:0.3rem">Total títulos</div>
+            </div>
+            <div style="background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius);padding:1.25rem;text-align:center">
+                <div style="font-size:2rem;font-weight:800;color:var(--color-primary)">${data.promedio_general || '—'}</div>
+                <div style="font-size:0.85rem;color:var(--color-text-muted);margin-top:0.3rem">Promedio general</div>
+            </div>
+            <div style="background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius);padding:1.25rem;text-align:center">
+                <div style="font-size:2rem;font-weight:800;color:#48bb78">${data.por_estado.completed}</div>
+                <div style="font-size:0.85rem;color:var(--color-text-muted);margin-top:0.3rem">Completados</div>
+            </div>
+            <div style="background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius);padding:1.25rem;text-align:center">
+                <div style="font-size:2rem;font-weight:800;color:#ed8936">${data.por_estado.in_progress}</div>
+                <div style="font-size:0.85rem;color:var(--color-text-muted);margin-top:0.3rem">En progreso</div>
+            </div>
+            <div style="background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius);padding:1.25rem;text-align:center">
+                <div style="font-size:2rem;font-weight:800;color:var(--color-text-muted)">${data.por_estado.pending}</div>
+                <div style="font-size:0.85rem;color:var(--color-text-muted);margin-top:0.3rem">Pendientes</div>
+            </div>
+        `
+
+        // POR CATEGORÍA
+        const categorias = {
+            '1': { nombre: 'Series', emoji: '📺', color: '#4299e1' },
+            '2': { nombre: 'Películas', emoji: '🎬', color: '#48bb78' },
+            '3': { nombre: 'Videojuegos', emoji: '🎮', color: '#ed8936' },
+            '4': { nombre: 'Lecturas', emoji: '📚', color: '#9f7aea' }
+        }
+        const statsCategorias = document.getElementById('stats-categorias')
+        statsCategorias.innerHTML = ''
+        const totalCat = Object.values(data.por_categoria).reduce((a, b) => a + b, 0) || 1
+
+        for (const [id, cat] of Object.entries(categorias)) {
+            const count = data.por_categoria[id] || 0
+            const pct = Math.round((count / totalCat) * 100)
+            statsCategorias.innerHTML += `
+                <div>
+                    <div style="display:flex;justify-content:space-between;margin-bottom:0.3rem">
+                        <span style="font-size:0.9rem">${cat.emoji} ${cat.nombre}</span>
+                        <span style="font-size:0.9rem;color:var(--color-text-muted)">${count}</span>
+                    </div>
+                    <div style="background:var(--color-border);border-radius:20px;height:8px;overflow:hidden">
+                        <div style="width:${pct}%;height:100%;background:${cat.color};border-radius:20px;transition:width 0.5s"></div>
+                    </div>
+                </div>
+            `
+        }
+
+        // POR ESTADO
+        const estados = [
+            { key: 'completed', nombre: 'Completados', emoji: '✅', color: '#48bb78' },
+            { key: 'in_progress', nombre: 'En progreso', emoji: '▶️', color: '#ed8936' },
+            { key: 'pending', nombre: 'Pendientes', emoji: '🕐', color: 'var(--color-text-muted)' }
+        ]
+        const statsEstados = document.getElementById('stats-estados')
+        statsEstados.innerHTML = ''
+        const totalEst = data.total || 1
+
+        for (const est of estados) {
+            const count = data.por_estado[est.key] || 0
+            const pct = Math.round((count / totalEst) * 100)
+            statsEstados.innerHTML += `
+                <div>
+                    <div style="display:flex;justify-content:space-between;margin-bottom:0.3rem">
+                        <span style="font-size:0.9rem">${est.emoji} ${est.nombre}</span>
+                        <span style="font-size:0.9rem;color:var(--color-text-muted)">${count}</span>
+                    </div>
+                    <div style="background:var(--color-border);border-radius:20px;height:8px;overflow:hidden">
+                        <div style="width:${pct}%;height:100%;background:${est.color};border-radius:20px;transition:width 0.5s"></div>
+                    </div>
+                </div>
+            `
+        }
+
+        // TOP CALIFICADOS
+        const statsTop = document.getElementById('stats-top')
+        const statsTopEmpty = document.getElementById('stats-top-empty')
+        statsTop.innerHTML = ''
+
+        if (data.top_calificados.length === 0) {
+            statsTopEmpty.classList.remove('hidden')
+        } else {
+            statsTopEmpty.classList.add('hidden')
+            data.top_calificados.forEach(item => {
+                const card = document.createElement('div')
+                card.classList.add('card')
+                const cover = item.cover_url
+                    ? `<img class="card__cover" src="${item.cover_url}" alt="${escapeHtml(item.title)}" loading="lazy"/>`
+                    : `<div class="card__cover--placeholder">🎬</div>`
+                card.innerHTML = `
+                    ${cover}
+                    <div class="card__info">
+                        <p class="card__title">${escapeHtml(item.title)}</p>
+                        <p class="card__rating">⭐ ${item.rating}/10</p>
+                        <p class="card__status">${formatStatus(item.status)}</p>
+                    </div>
+                `
+                statsTop.appendChild(card)
+            })
+        }
+
+    } catch (err) {
+        console.error('Error cargando perfil:', err)
+    }
 }
