@@ -130,3 +130,41 @@ def check_entry(media_id):
     ).first()
     
     return jsonify({'exists': existing is not None})
+@entries_bp.route('/stats', methods=['GET'])
+def get_stats():
+    user = get_current_user(request)
+    if not user:
+        return jsonify({'error': 'No autorizado'}), 401
+
+    entries = Entry.query.filter_by(user_id=user['user_id']).all()
+
+    total = len(entries)
+    por_estado = {'pending': 0, 'in_progress': 0, 'completed': 0}
+    por_categoria = {'1': 0, '2': 0, '3': 0, '4': 0}
+    ratings = []
+
+    for e in entries:
+        por_estado[e.status] = por_estado.get(e.status, 0) + 1
+        media = Media.query.get(e.media_id)
+        if media:
+            cat = str(media.category_id)
+            por_categoria[cat] = por_categoria.get(cat, 0) + 1
+        if e.rating:
+            ratings.append({
+                'title': media.title if media else '?',
+                'cover_url': media.cover_url if media else None,
+                'rating': e.rating,
+                'status': e.status,
+                'category_id': media.category_id if media else None
+            })
+
+    ratings_sorted = sorted(ratings, key=lambda x: x['rating'], reverse=True)
+    promedio = round(sum(r['rating'] for r in ratings) / len(ratings), 1) if ratings else 0
+
+    return jsonify({
+        'total': total,
+        'por_estado': por_estado,
+        'por_categoria': por_categoria,
+        'promedio_general': promedio,
+        'top_calificados': ratings_sorted
+    })
