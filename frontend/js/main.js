@@ -47,6 +47,50 @@ function escapeHtml(text) {
     return div.innerHTML
 }
 
+function getSourceBadge(source, type) {
+    const badges = {
+        // CÓMICS OCCIDENTALES (Comic Vine)
+        'comic_vine': { 
+            text: '🦇 Cómic Occidental', 
+            color: '#ff6b35' // Naranja vibrante
+        },
+        
+        // MANGA Y NOVELAS LIGERAS (Jikan)
+        'jikan': { 
+            text: type === 'manga' ? '🇯 Manga' : ' Novela Ligera', 
+            color: '#9b59b6' // Morado
+        },
+        
+        // LIBROS TRADICIONALES (Google Books)
+        'google_books': { 
+            text: type === 'book' ? '📚 Libro Tradicional' : '🖼️ Novela Gráfica', 
+            color: type === 'book' ? '#3498db' : '#e67e22' // Azul o Naranja oscuro
+        },
+        'google_books_fallback': { 
+            text: '🖼️ Novela Gráfica', 
+            color: '#e67e22' 
+        },
+
+        // OTROS (Por si acaso)
+        'tmdb': { text: '🎬 Película/Serie', color: '#e74c3c' },
+        'rawg': { text: '🎮 Videojuego', color: '#2ecc71' }
+    };
+
+    const badge = badges[source] || badges['google_books']; // Default a libro si no se sabe
+    
+    return `<span class="source-badge" style="
+        background:${badge.color};
+        color:white;
+        padding:4px 8px;
+        border-radius:12px;
+        font-size:0.75em;
+        font-weight:bold;
+        margin-top:6px;
+        display:inline-block;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    ">${badge.text}</span>`;
+}
+
 // ===== INICIALIZACIÓN =====
 document.addEventListener('DOMContentLoaded', () => {
     updateAuthUI()
@@ -106,25 +150,36 @@ function createCard(item, isSearchResult = false) {
     const card = document.createElement('div')
     card.classList.add('card')
 
+    // DEBUG: Ver qué recibe realmente
+    console.log("🎨 Creando card para:", item.title, "Source:", item.source, "Type:", item.type)
+
     const cover = item.cover_url
         ? `<img class="card__cover" src="${item.cover_url}" alt="${escapeHtml(item.title)}" loading="lazy"/>`
         : `<div class="card__cover--placeholder">🎬</div>`
 
-    const rating = item.rating
-        ? `<p class="card__rating">⭐ ${item.rating}</p>`
-        : ''
+    // Forzar badge si es búsqueda
+    let sourceBadge = ''
+    if (isSearchResult) {
+        // Si no tiene source, intentamos adivinarlo por el tipo o asumimos comic_vine si es lectura
+        let source = item.source || 'unknown'
+        let type = item.type || 'book'
+        
+        // Parche temporal: Si es búsqueda de libros y no tiene source, asumimos comic_vine si el título parece cómic
+        if (source === 'unknown' && activeCategoryId === '4') {
+             source = 'comic_vine' 
+        }
 
-    const status = item.status
-        ? `<p class="card__status">${formatStatus(item.status)}</p>`
-        : ''
+        sourceBadge = getSourceBadge(source, type)
+    }
 
     card.innerHTML = `
         ${cover}
         <div class="card__info">
             <p class="card__title">${escapeHtml(item.title)}</p>
             <p class="card__year">${item.year || ''}</p>
-            ${rating}
-            ${status}
+            ${sourceBadge}
+            <!-- DEBUG VISUAL: Mostrar fuente en texto si el badge falla -->
+            ${isSearchResult && !item.source ? `<small style="color:red; font-size:0.7em">SOURCE MISSING</small>` : ''}
         </div>
     `
 
@@ -199,32 +254,33 @@ async function searchMedia() {
     if (!query) return
 
     currentSearchQuery = query
+    console.clear() // Limpiar consola para ver claro
+    console.log(`🚀 INICIANDO BÚSQUEDA: "${query}" | Página: ${currentSearchPage}`)
 
     if (currentSearchPage === 1) {
-        searchGrid.innerHTML = '<p style="color:var(--color-text-muted)">Buscando...</p>'
+        searchGrid.innerHTML = '<p style="color:white; text-align:center;">Cargando...</p>'
     }
 
     searchResults.classList.remove('hidden')
 
     try {
         let url = ''
-
+        // Determinar URL según categoría
         if (activeCategoryId === '3') {
-            currentSearchType = 'rawg'
             url = `${API}/media/search/rawg?q=${encodeURIComponent(query)}&page=${currentSearchPage}`
         } else if (activeCategoryId === '4') {
-            currentSearchType = 'books'
             url = `${API}/media/search/books?q=${encodeURIComponent(query)}&page=${currentSearchPage}`
         } else {
-            currentSearchType = 'tmdb'
-            let searchType = 'multi'
-            if (activeCategoryId === '1') searchType = 'tv'
-            if (activeCategoryId === '2') searchType = 'movie'
+            let searchType = activeCategoryId === '1' ? 'tv' : (activeCategoryId === '2' ? 'movie' : 'multi')
             url = `${API}/media/search/tmdb?q=${encodeURIComponent(query)}&type=${searchType}&page=${currentSearchPage}`
         }
 
+        console.log(`🌐 FETCHING: ${url}`)
         const res = await fetch(url)
         const data = await res.json()
+        
+        console.log(`📦 RESPUESTA RECIBIDA:`, data)
+        console.log(`🔢 CANTIDAD DE RESULTADOS: ${data.results ? data.results.length : 0}`)
 
         if (currentSearchPage === 1) searchGrid.innerHTML = ''
 
@@ -235,21 +291,37 @@ async function searchMedia() {
             return
         }
 
-        results.forEach(item => {
-            searchGrid.appendChild(createCard(item, true))
+        // BUCLE DE RENDERIZADO DEBUG
+        let cardsCreated = 0
+        results.forEach((item, index) => {
+            // Forzar source si no viene
+            if (!item.source) {
+                item.source = 'unknown'
+            }
+            // Crear tarjeta
+            const card = createCard(item, true)
+            
+            // Intentar añadir al DOM
+            try {
+                searchGrid.appendChild(card)
+                cardsCreated++
+                console.log(`✅ Card ${index + 1} añadida: ${item.title} [${item.source}]`)
+            } catch (e) {
+                console.error(`❌ Error añadiendo card ${index}:`, e)
+            }
         })
 
+        console.log(`🏁 TOTAL CARDS PINTADAS EN PANTALLA: ${cardsCreated}`)
+
+        // Botón Cargar Más
         const existingBtn = document.getElementById('btn-load-more')
         if (existingBtn) existingBtn.remove()
 
-        const totalPages = data.total_pages || 1
-        const hasNext = data.has_next !== undefined ? data.has_next : currentSearchPage < totalPages
-
-        if (hasNext || currentSearchPage < totalPages) {
+        if (data.has_next || (data.total_pages && currentSearchPage < data.total_pages)) {
             const loadMoreBtn = document.createElement('button')
             loadMoreBtn.id = 'btn-load-more'
             loadMoreBtn.className = 'btn btn--outline'
-            loadMoreBtn.style.cssText = 'display:block;margin:1.5rem auto;padding:0.75rem 2rem'
+            loadMoreBtn.style.cssText = 'display:block;margin:2rem auto;padding:1rem 2rem;'
             loadMoreBtn.textContent = 'Cargar más resultados'
             loadMoreBtn.addEventListener('click', () => {
                 currentSearchPage++
@@ -259,7 +331,8 @@ async function searchMedia() {
         }
 
     } catch (err) {
-        console.error('Error buscando:', err)
+        console.error('💥 ERROR CRÍTICO:', err)
+        searchGrid.innerHTML = `<p style="color:red">Error: ${err.message}</p>`
     }
 }
 
@@ -268,19 +341,28 @@ function openSearchResultModal(item) {
     const tmdbType = item.type
     let selectedCategory = ''
     let categoryName = ''
-    if (tmdbType === 'movie') {
-        selectedCategory = '2'  // Películas
+    
+    // Determinar categoría basada en tipo y source
+    if (item.source === 'google_books' || item.source === 'google_books_fallback') {
+        selectedCategory = '4'
+        categoryName = 'Libro/Cómic'
+    } else if (item.source === 'jikan') {
+        selectedCategory = '4'
+        categoryName = item.type === 'manga' ? 'Manga' : 'Novela Ligera'
+    } else if (tmdbType === 'movie') {
+        selectedCategory = '2'
         categoryName = 'Película'
     } else if (tmdbType === 'tv') {
-        selectedCategory = '1'  // Series
+        selectedCategory = '1'
         categoryName = 'Serie'
     } else if (tmdbType === 'game') {
-        selectedCategory = '3'  // Videojuegos
+        selectedCategory = '3'
         categoryName = 'Videojuego'
     } else if (tmdbType === 'book' || tmdbType === 'manga') {
-        selectedCategory = '4'  // Lecturas
+        selectedCategory = '4'
         categoryName = tmdbType === 'book' ? 'Libro' : 'Manga'
     }
+    
     if (tmdbType === 'multi' && activeCategoryId) {
         selectedCategory = activeCategoryId
         if (activeCategoryId === '1') categoryName = 'Serie'
@@ -293,6 +375,7 @@ function openSearchResultModal(item) {
         alert('No se pudo determinar la categoría de este contenido')
         return
     }
+    
     const categoryOptions = `
         <option value="1" ${selectedCategory === '1' ? 'selected' : ''} ${tmdbType === 'tv' || (tmdbType === 'multi' && activeCategoryId === '1') ? '' : 'disabled'}>Series</option>
         <option value="2" ${selectedCategory === '2' ? 'selected' : ''} ${tmdbType === 'movie' || (tmdbType === 'multi' && activeCategoryId === '2') ? '' : 'disabled'}>Películas</option>
@@ -312,6 +395,7 @@ function openSearchResultModal(item) {
                 <p style="color:var(--color-primary);font-size:0.9rem;font-weight:600;margin-top:0.3rem">
                     🏷️ Tipo: ${categoryName}
                 </p>
+                ${item.source ? `<p style="color:var(--color-text-muted);font-size:0.85rem;margin-top:0.3rem">📡 Fuente: ${item.source}</p>` : ''}
                 <p style="color:var(--color-text-muted);font-size:0.85rem;margin-top:0.5rem">${escapeHtml(item.description || '')}</p>
             </div>
         </div>

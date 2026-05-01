@@ -43,12 +43,21 @@
             <button class="btn btn--primary" id="btn-search">Buscar</button>
         </div>
     </section>
-
     <!-- RESULTADOS DE BÚSQUEDA -->
-    <section class="search-results hidden" id="search-results">
-        <h2 class="section__title">Resultados de búsqueda</h2>
-        <div class="grid" id="search-grid"></div>
-    </section>
+<section class="search-results hidden" id="search-results">
+    <h2 class="section__title">Resultados de búsqueda</h2>
+    
+    <!-- FILTROS DE LECTURAS (Solo visibles si hay resultados) -->
+    <!-- Nota: Le damos un ID para poder ocultarlo/mostrarlo desde JS si es necesario -->
+    <div id="reading-filters" style="margin-bottom:1rem; display:flex; gap:0.5rem; flex-wrap: wrap;">
+        <button class="btn btn--outline" onclick="filterResults('all')" style="font-size:0.8rem; padding:0.4rem 0.8rem;">Todos</button>
+        <button class="btn btn--outline" onclick="filterResults('comic_vine')" style="font-size:0.8rem; padding:0.4rem 0.8rem; border-color:#ff6b35; color:#ff6b35;">🦇 Cómics</button>
+        <button class="btn btn--outline" onclick="filterResults('jikan')" style="font-size:0.8rem; padding:0.4rem 0.8rem; border-color:#9b59b6; color:#9b59b6;">🇯 Manga</button>
+        <button class="btn btn--outline" onclick="filterResults('google_books')" style="font-size:0.8rem; padding:0.4rem 0.8rem; border-color:#3498db; color:#3498db;">📚 Libros</button>
+    </div>
+
+    <div class="grid" id="search-grid"></div>
+</section>
 
     <!-- CATÁLOGO PRINCIPAL -->
     <main class="main" id="main-section">

@@ -5,6 +5,8 @@ from models import Media, Category
 import jwt
 import requests
 from dotenv import load_dotenv
+
+# Cargar variables de entorno desde .env
 load_dotenv()
 
 media_bp = Blueprint('media', __name__)
@@ -12,6 +14,7 @@ media_bp = Blueprint('media', __name__)
 SECRET_KEY = os.environ.get('SECRET_KEY', 'mediashelf_secret_key')
 TMDB_KEY = os.environ.get('TMDB_KEY')
 RAWG_KEY = os.environ.get('RAWG_KEY')
+COMIC_VINE_KEY = os.environ.get('COMIC_VINE_KEY')
 
 def get_current_user(request):
     token = request.headers.get('Authorization', '').replace('Bearer ', '')
@@ -22,13 +25,13 @@ def get_current_user(request):
     except:
         return None
 
-# Obtener todas las categorías
+# --- RUTAS EXISTENTES ---
+
 @media_bp.route('/categories', methods=['GET'])
 def get_categories():
     categories = Category.query.all()
     return jsonify([{'id': c.id, 'name': c.name} for c in categories])
 
-# Obtener todo el catálogo
 @media_bp.route('/all', methods=['GET'])
 def get_all_media():
     category_id = request.args.get('category_id')
@@ -50,17 +53,13 @@ def add_media():
     user = get_current_user(request)
     if not user or user.get('role') != 'admin':
         return jsonify({'error': 'No autorizado'}), 403
-
     data = request.get_json()
     if not data.get('title') or not data.get('category_id'):
         return jsonify({'error': 'Título y categoría son requeridos'}), 400
-    existing = Media.query.filter_by(
-        title=data['title'], 
-        category_id=data['category_id']
-    ).first()
-
+    
+    existing = Media.query.filter_by(title=data['title'], category_id=data['category_id']).first()
     if existing:
-        return jsonify({'message': 'Título ya existe en esta categoría', 'id': existing.id}), 200
+        return jsonify({'message': 'Título ya existe', 'id': existing.id}), 200
 
     new_media = Media(
         title=data['title'],
@@ -73,7 +72,6 @@ def add_media():
     db.session.commit()
     return jsonify({'message': 'Título agregado', 'id': new_media.id}), 201
 
-# Buscar en TMDB
 @media_bp.route('/search/tmdb', methods=['GET'])
 def search_tmdb():
     query = request.args.get('q')
@@ -81,13 +79,14 @@ def search_tmdb():
     page = request.args.get('page', 1)
     if not query:
         return jsonify({'error': 'Query requerido'}), 400
+    
+    # Usar solo variable de entorno, sin fallback hardcodeado
+    if not TMDB_KEY:
+        return jsonify({'error': 'TMDB Key no configurada'}), 500
 
-    TMDB_KEY = 'c2ad5ded135cdde9ff8eb7763bcb5452'
     url = f'https://api.themoviedb.org/3/search/{search_type}?api_key={TMDB_KEY}&query={query}&language=es-MX&include_adult=false&page={page}'
-
     response = requests.get(url)
     data = response.json()
-
     results = []
     for item in data.get('results', []):
         results.append({
@@ -96,28 +95,25 @@ def search_tmdb():
             'cover_url': f"https://image.tmdb.org/t/p/w500{item.get('poster_path')}" if item.get('poster_path') else None,
             'year': (item.get('release_date') or item.get('first_air_date') or '')[:4],
             'description': item.get('overview'),
-            'type': item.get('media_type') or search_type
+            'type': item.get('media_type') or search_type,
+            'source': 'tmdb'
         })
-    return jsonify({
-        'results': results,
-        'total_pages': data.get('total_pages', 1),
-        'current_page': int(page)
-    })
+    return jsonify({'results': results, 'total_pages': data.get('total_pages', 1), 'current_page': int(page)})
 
-# Buscar videojuegos en RAWG
 @media_bp.route('/search/rawg', methods=['GET'])
 def search_rawg():
     query = request.args.get('q')
     page = request.args.get('page', 1)
     if not query:
         return jsonify({'error': 'Query requerido'}), 400
+    
+    # Usar solo variable de entorno, sin fallback hardcodeado
+    if not RAWG_KEY:
+        return jsonify({'error': 'RAWG Key no configurada'}), 500
 
-    RAWG_KEY = '9a8e7eb37f1148f98721144404a1ac92'
     url = f'https://api.rawg.io/api/games?key={RAWG_KEY}&search={query}&page_size=20&page={page}'
-
     response = requests.get(url)
     data = response.json()
-
     results = []
     for item in data.get('results', []):
         results.append({
@@ -125,65 +121,167 @@ def search_rawg():
             'cover_url': item.get('background_image'),
             'year': str(item.get('released', ''))[:4] if item.get('released') else '',
             'description': f"Plataformas: {', '.join([p['platform']['name'] for p in item.get('platforms', [])[:3]])}",
-            'type': 'game'
+            'type': 'game',
+            'source': 'rawg'
         })
-    return jsonify({
-        'results': results,
-        'has_next': bool(data.get('next')),
-        'current_page': int(page)
-    })
+    return jsonify({'results': results, 'has_next': bool(data.get('next')), 'current_page': int(page)})
 
-# Buscar lecturas
+# ==============================================================================
+# 🔥 BÚSQUEDA DE LIBROS/CÓMICS/MANGA MEJORADA
+# ==============================================================================
 @media_bp.route('/search/books', methods=['GET'])
 def search_books():
     query = request.args.get('q')
     page = int(request.args.get('page', 1))
-    offset = (page - 1) * 20
     if not query:
         return jsonify({'error': 'Query requerido'}), 400
 
     results = []
+    seen_ids = set() # Para evitar duplicados de Comic Vine
 
+    print(f"🔍 [BACKEND] Buscando: '{query}' | Página: {page}")
+
+    # --- 1. COMIC VINE (Cómics Occidentales) ---
+    if COMIC_VINE_KEY:
+        try:
+            headers = {'User-Agent': 'MediaShelfApp/1.0'}
+            offset = (page - 1) * 20
+            
+            # Buscar VOLÚMENES (Series)
+            cv_url = f'https://comicvine.gamespot.com/api/search/?api_key={COMIC_VINE_KEY}&format=json&query={query}&resources=volume&limit=20&offset={offset}'
+            cv_res = requests.get(cv_url, headers=headers, timeout=15)
+            
+            if cv_res.status_code == 200:
+                data = cv_res.json().get('results', [])
+                for item in data:
+                    cv_id = item.get('id')
+                    title = item.get('name')
+                    if not cv_id or not title: continue
+                    if cv_id in seen_ids: continue
+                    seen_ids.add(cv_id)
+
+                    cover_url = item['image'].get('super_url') if item.get('image') else None
+                    year = str(item.get('start_year', '')) if item.get('start_year') else ''
+                    publisher = item.get('publisher', {}).get('name', '') if item.get('publisher') else ''
+                    
+                    results.append({
+                        'title': title,
+                        'cover_url': cover_url,
+                        'year': year,
+                        'description': f"Serie. Editorial: {publisher}",
+                        'type': 'comic_series',
+                        'source': 'comic_vine'
+                    })
+
+            # Rellenar con ISSUES si hay pocos resultados
+            if len(results) < 10:
+                cv_url_issues = f'https://comicvine.gamespot.com/api/search/?api_key={COMIC_VINE_KEY}&format=json&query={query}&resources=issue&limit=20&offset={offset}'
+                cv_res_issues = requests.get(cv_url_issues, headers=headers, timeout=15)
+                
+                if cv_res_issues.status_code == 200:
+                    data_issues = cv_res_issues.json().get('results', [])
+                    for item in data_issues:
+                        cv_id = item.get('id')
+                        title = item.get('name')
+                        if not cv_id or not title: continue
+                        if cv_id in seen_ids: continue
+                        seen_ids.add(cv_id)
+                        
+                        cover_url = item['image'].get('super_url') if item.get('image') else None
+                        year = item.get('cover_date', '')[:4] if item.get('cover_date') else ''
+                        volume_name = item.get('volume', {}).get('name', '') if item.get('volume') else ''
+                        publisher = item.get('publisher', {}).get('name', '') if item.get('publisher') else ''
+                        
+                        display_title = f"{title} ({volume_name})" if volume_name and volume_name.lower() not in title.lower() else title
+
+                        results.append({
+                            'title': display_title,
+                            'cover_url': cover_url,
+                            'year': year,
+                            'description': f"Issue. Editorial: {publisher}",
+                            'type': 'comic_issue',
+                            'source': 'comic_vine'
+                        })
+
+        except Exception as e:
+            print(f"💥 Error Comic Vine: {str(e)}")
+
+    # --- 2. JIKAN (Manga) ---
+    if len(results) < 15:
+        try:
+            jikan_url = f'https://api.jikan.moe/v4/manga?q={query}&limit=10&page=1'
+            jikan_res = requests.get(jikan_url, timeout=5)
+            
+            if jikan_res.status_code == 200:
+                jikan_data = jikan_res.json().get('data', [])
+                for item in jikan_data:
+                    title = item.get('title')
+                    if not title: continue
+                    if any(r['title'] == title and r['source'] == 'jikan' for r in results):
+                        continue
+
+                    images = item.get('images', {})
+                    cover_url = images.get('jpg', {}).get('image_url') if images else None
+
+                    results.append({
+                        'title': title,
+                        'cover_url': cover_url,
+                        'year': str(item.get('published', {}).get('prop', {}).get('from', {}).get('year', '')),
+                        'description': item.get('synopsis', '')[:100] if item.get('synopsis') else 'Manga',
+                        'type': 'manga',
+                        'source': 'jikan'
+                    })
+        except Exception as e:
+            print(f"⚠️ Error Jikan: {e}")
+
+    # --- 3. GOOGLE BOOKS (Libros Tradicionales y Novelas) ---
     try:
-        ol_url = f'https://openlibrary.org/search.json?q={query}&limit=10&offset={offset}'
-        ol_res = requests.get(ol_url)
-        ol_data = ol_res.json()
+        start_index = (page - 1) * 20
+        gb_url = f'https://www.googleapis.com/books/v1/volumes?q={query}&startIndex={start_index}&maxResults=20&printType=books&orderBy=relevance'
+        gb_res = requests.get(gb_url, timeout=10)
+        
+        if gb_res.status_code == 200:
+            for item in gb_res.json().get('items', []):
+                info = item.get('volumeInfo', {})
+                title = info.get('title')
+                if not title: continue
+                
+                # Evitar duplicados simples por título con otras fuentes
+                if any(r['title'].lower() == title.lower() for r in results):
+                    continue
 
-        for item in ol_data.get('docs', []):
-            cover_id = item.get('cover_i')
-            cover_url = f'https://covers.openlibrary.org/b/id/{cover_id}-L.jpg' if cover_id else None
-            results.append({
-                'title': item.get('title'),
-                'cover_url': cover_url,
-                'year': str(item.get('first_publish_year', '')),
-                'description': f"Autor: {', '.join(item.get('author_name', ['Desconocido'])[:2])}",
-                'type': 'book'
-            })
-    except:
-        pass
+                cover = None
+                if info.get('imageLinks'):
+                    cover = info['imageLinks'].get('thumbnail') or info['imageLinks'].get('smallThumbnail')
+                    if cover:
+                        cover = cover.replace('http://', 'https://')
+                
+                authors = info.get('authors', ['Desconocido'])
+                year = info.get('publishedDate', '')[:4] if info.get('publishedDate') else ''
+                
+                results.append({
+                    'title': title,
+                    'cover_url': cover,
+                    'year': year,
+                    'description': f"Autor: {', '.join(authors[:2])}",
+                    'type': 'book',
+                    'source': 'google_books'
+                })
+    except Exception as e:
+        print(f'Error Google Books: {e}')
 
-    try:
-        jikan_url = f'https://api.jikan.moe/v4/manga?q={query}&limit=10&page={page}'
-        jikan_res = requests.get(jikan_url)
-        jikan_data = jikan_res.json()
-
-        for item in jikan_data.get('data', []):
-            results.append({
-                'title': item.get('title'),
-                'cover_url': item.get('images', {}).get('jpg', {}).get('image_url'),
-                'year': str(item.get('published', {}).get('prop', {}).get('from', {}).get('year', '')),
-                'description': item.get('synopsis', '')[:150] if item.get('synopsis') else '',
-                'type': 'manga'
-            })
-    except:
-        pass
-
+    # --- RESULTADO FINAL ---
+    final_results = results[:30] # Limitamos a 30 para no saturar
+    print(f"🏁 [BACKEND] Devolviendo {len(final_results)} resultados.")
+    
     return jsonify({
-        'results': results,
-        'current_page': page
+        'results': final_results,
+        'current_page': page,
+        'has_next': len(results) >= 30
     })
 
-# Detalle de un título
+# --- RUTAS RESTANTES ---
+
 @media_bp.route('/<int:media_id>', methods=['GET'])
 def get_media(media_id):
     m = Media.query.get_or_404(media_id)
@@ -196,13 +294,11 @@ def get_media(media_id):
         'description': m.description
     })
 
-# Eliminar título
 @media_bp.route('/<int:media_id>', methods=['DELETE'])
 def delete_media(media_id):
     user = get_current_user(request)
     if not user or user.get('role') != 'admin':
         return jsonify({'error': 'No autorizado'}), 403
-
     m = Media.query.get_or_404(media_id)
     db.session.delete(m)
     db.session.commit()
