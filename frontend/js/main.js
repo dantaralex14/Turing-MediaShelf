@@ -1,5 +1,5 @@
 // ===== ESTADO GLOBAL =====
-const API = 'https://mediashelf-api.onrender.com/api'
+const API = 'https://turing-mediashelf-production.up.railway.app/api'
 let token = localStorage.getItem('token') || null
 let currentUser = JSON.parse(localStorage.getItem('user') || 'null')
 let activeCategoryId = ''
